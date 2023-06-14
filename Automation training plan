@@ -1,0 +1,67 @@
+Training Plan for Automation Testing New Engineers
+
+Duration: 4 Weeks
+
+Week 1: Introduction to Automation Testing
+
+1. Day 1: Orientation and Overview
+   - Introduce the new engineers to the automation testing team.
+   - Provide an overview of automation testing and its importance in software development.
+   - Explain the goals and objectives of the training program.
+
+2. Day 2: Test Automation Fundamentals
+   - Explain the basic concepts of test automation, including test scripts, frameworks, and tools.
+   - Discuss the benefits and challenges of test automation.
+   - Demonstrate the usage of a popular automation testing tool, such as Selenium.
+
+3. Day 3: Test Environment Setup
+   - Guide the engineers in setting up the necessary test environment, including installing and configuring the automation testing tool and related dependencies.
+   - Provide hands-on exercises to reinforce the learning.
+
+4. Day 4: Test Scripting Basics
+   - Teach the engineers the fundamentals of writing test scripts using the selected automation testing tool.
+   - Cover topics such as element identification, interactions, assertions, and handling common scenarios.
+   - Assign practical exercises to practice writing test scripts.
+
+Week 2: Advanced Automation Testing Concepts
+
+1. Day 5: Test Frameworks and Design Patterns
+   - Introduce different test frameworks and design patterns commonly used in automation testing.
+   - Discuss the benefits and trade-offs of each approach.
+   - Provide examples and exercises to reinforce the learning.
+
+2. Day 6: Data-Driven Testing
+   - Explain the concept of data-driven testing and its importance in automation.
+   - Guide the engineers in implementing data-driven tests using appropriate techniques and tools.
+   - Assign exercises to practice data-driven testing.
+
+3. Day 7: Test Reporting and Logging
+   - Teach the engineers how to generate comprehensive test reports and log test activities for better troubleshooting and analysis.
+   - Demonstrate popular reporting and logging tools in the automation testing domain.
+   - Assign exercises to practice generating reports and logs.
+
+4. Day 8: Continuous Integration and Continuous Testing
+   - Introduce the concepts of continuous integration and continuous testing.
+   - Explain the integration of automation tests with CI/CD pipelines.
+   - Guide the engineers in setting up and running tests within a CI/CD environment.
+
+Week 3: Test Framework Development and Best Practices
+
+1. Day 9: Custom Test Framework Development
+   - Teach the engineers how to develop a custom test framework tailored to their project requirements.
+   - Cover topics such as test organization, setup, teardown, and test data management.
+   - Provide hands-on exercises to develop a basic custom test framework.
+
+2. Day 10: Test Maintenance and Refactoring
+   - Discuss the importance of test maintenance and refactoring for long-term sustainability.
+   - Teach techniques for identifying and resolving test script issues and improving test code quality.
+   - Assign exercises to practice test maintenance and refactoring.
+
+3. Day 11: Test Automation Best Practices
+   - Present a set of best practices for effective automation testing.
+   - Cover topics such as test case design, test coverage, test data management, and test execution strategies.
+   - Share real-world examples and experiences to illustrate the best practices.
+
+4. Day 12: Code Review and Collaboration
+   - Discuss the significance of code review and collaboration in automation testing.
+   -
