@@ -1,0 +1,61 @@
+# Standard library imports
+import os
+
+# Third party imports
+import streamlit as st
+from langchain import OpenAI, VectorDBQA
+from langchain.document_loaders import DirectoryLoader
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+
+def main():
+    # Setting the environment variable for OpenAI API Key
+    os.environ["OPENAI_API_KEY"] = "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"
+
+    # Specify the path to the directory containing text and PDF files
+    data_directory = "C:/Users/Ankur Sharma/Desktop/datachatbot"
+
+    # Loader to read all text files from a directory
+    txt_loader = DirectoryLoader(data_directory, glob='**/*.txt')
+    pdf_loader = DirectoryLoader(data_directory, glob='**/*.pdf')
+
+    # Load all documents
+    try:
+        txt_docs = txt_loader.load()
+        pdf_docs = pdf_loader.load()
+        docs = txt_docs + pdf_docs
+    except FileNotFoundError:
+        st.error("The provided directory path or file pattern is not valid.")
+        return
+
+    # Splitter for splitting text documents into smaller chunks
+    char_text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+
+    # Split all loaded documents
+    doc_texts = char_text_splitter.split_documents(docs)
+
+    # Get embeddings from OpenAI API
+    openAI_embeddings = OpenAIEmbeddings(openai_api_key=os.environ['OPENAI_API_KEY'])
+
+    # Create VectorStore from the documents using the embeddings
+    vStore = Chroma.from_documents(doc_texts, openAI_embeddings)
+
+    # Create a VectorDBQA model
+    model = VectorDBQA.from_chain_type(llm=OpenAI(), chain_type="stuff", vectorstore=vStore)
+
+    # UI to get a question from the user
+    question = st.text_input("Please enter your question: ")
+
+    if st.button("Get Answer"):
+        # Running the model and getting the answer
+        try:
+            answer = model.run(question)
+            # st.write("Question: ", question)
+            st.write(answer)
+        except Exception as e:
+            st.error(f"An error occurred while running the model: {e}")
+            return
+
+if __name__ == "__main__":
+    main()

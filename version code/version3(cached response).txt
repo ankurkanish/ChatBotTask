@@ -1,0 +1,115 @@
+# Standard library imports
+import os
+
+# Third party imports
+import streamlit as st
+from langchain import OpenAI, VectorDBQA
+from langchain.document_loaders import DirectoryLoader
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+import json
+
+# Function to cache the response
+def cache_response(question, response):
+    """Caches the response to a question."""
+    with open("cache.json", "w") as f:
+        data = {question: response}
+        json.dump(data, f)
+
+def get_cached_response(question):
+    """Gets the cached response to a question."""
+    with open("cache.json", "r") as f:
+        data = json.load(f)
+        if question in data:
+            return data[question]
+    return None
+
+def clear_cache():
+    """Clears the cached responses."""
+    with open("cache.json", "w") as f:
+        data = {}
+        json.dump(data, f)
+
+def main():
+    # Setting the environment variable for OpenAI API Key
+    os.environ["OPENAI_API_KEY"] = "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"
+
+    # Specify the path to the directory containing text and PDF files
+    data_directory = "C:/Users/Ankur Sharma/Desktop/datachatbot"
+
+    # Loader to read all text files from a directory
+    txt_loader = DirectoryLoader(data_directory, glob='**/*.txt')
+    pdf_loader = DirectoryLoader(data_directory, glob='**/*.pdf')
+
+    # Load all documents
+    try:
+        txt_docs = txt_loader.load()
+        pdf_docs = pdf_loader.load()
+        docs = txt_docs + pdf_docs
+    except FileNotFoundError:
+        st.error("The provided directory path or file pattern is not valid.")
+        return
+
+    # Splitter for splitting text documents into smaller chunks
+    char_text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+
+    # Split all loaded documents
+    doc_texts = char_text_splitter.split_documents(docs)
+
+    # Get embeddings from OpenAI API
+    openAI_embeddings = OpenAIEmbeddings(openai_api_key=os.environ['OPENAI_API_KEY'])
+
+    # Create VectorStore from the documents using the embeddings
+    vStore = Chroma.from_documents(doc_texts, openAI_embeddings)
+
+    # Create a VectorDBQA model
+    model = VectorDBQA.from_chain_type(llm=OpenAI(), chain_type="stuff", vectorstore=vStore)
+
+    # Add a title to the sidebar
+    st.sidebar.title("Explore more")
+
+    # Add a "Clear Cache" button in the sidebar
+    if st.sidebar.button("Clear Cache"):
+        clear_cache()
+
+    # Styling the informational text in the sidebar
+    st.sidebar.markdown('<p style="font-size: 12px; font-weight: bold;">Click on the "Clear Cache" button to get the updated data.</p>', unsafe_allow_html=True)
+
+    # Add a title on the main screen
+    st.title("Welcome to AI training Chatbot")
+
+    # UI to get a question from the user on the main screen
+    question = st.text_input("Please enter your question: ")  # Adjust the height as per your preference
+
+    # "Get Answer" button on the main screen
+    if st.button("Get Answer"):
+        question = question.strip()
+        if not question:
+            st.warning("Please enter a question.")
+            return
+        if len(question) < 10:
+            st.warning("Please enter a longer question.")
+            return
+
+        # Check if there is a cached response for the current query
+        cached_response = get_cached_response(question)
+        if cached_response:
+            st.write("Cached Response:")
+            st.write(cached_response)
+        else:
+            # Running the model and getting the answer
+            try:
+                answer = model.run(question)
+                # st.subheader("Question:")
+                st.write(question)
+                # st.subheader("Answer:")
+                st.write(answer)
+                # Cache the response if it's not already cached
+                cache_response(question, answer)
+            except Exception as e:
+                st.error(f"An error occurred while running the model: {e}")
+                return
+
+if __name__ == "__main__":
+    main()

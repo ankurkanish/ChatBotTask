@@ -1,0 +1,139 @@
+import os
+import streamlit as st
+import pdfplumber
+import json
+from langchain import OpenAI, VectorDBQA
+from langchain.document_loaders import DirectoryLoader
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+from prettytable import PrettyTable  # Import PrettyTable library
+
+# Function to cache the response
+def cache_response(question, response):
+    """Caches the response to a question."""
+    with open("cache.json", "w") as f:
+        data = {question: response}
+        json.dump(data, f)
+
+def get_cached_response(question):
+    """Gets the cached response to a question."""
+    with open("cache.json", "r") as f:
+        data = json.load(f)
+        if question in data:
+            return data[question]
+    return None
+
+def clear_cache():
+    """Clears the cached responses."""
+    with open("cache.json", "w") as f:
+        data = {}
+        json.dump(data, f)
+
+def load_data_from_local_directory(directory_path, user_query):
+    """Load data from PDF files in the local directory that match the user's query and return as a list of dictionaries."""
+    data = []
+    for filename in os.listdir(directory_path):
+        if filename.lower().endswith(".pdf"):
+            first_word = filename.lower().split()[0]
+            if first_word in user_query.lower():
+                with pdfplumber.open(os.path.join(directory_path, filename)) as pdf:
+                    # Assuming the data is in a tabular format in the PDF
+                    for page in pdf.pages:
+                        table = page.extract_table()
+                        if table:
+                            header = table[0]
+                            for row in table[1:]:
+                                data.append({header[i]: row[i] for i in range(len(header))})
+    return data
+
+def generate_table_from_data(data):
+    """Generate a table dynamically from the provided data using PrettyTable."""
+    if not data:
+        return "No data available."
+
+    table = PrettyTable()
+    table.field_names = data[0].keys()
+
+    for row in data:
+        table.add_row(row.values())
+
+    return table.get_string()
+
+def main():
+    # Setting the environment variable for OpenAI API Key
+    os.environ["OPENAI_API_KEY"] = "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"
+
+    # Specify the path to the directory containing PDF files
+    data_directory = "C:/Users/Ankur Sharma/Desktop/datachatbot"
+
+    # Loader to read all text files from a directory
+    txt_loader = DirectoryLoader(data_directory, glob='**/*.txt')
+    pdf_loader = DirectoryLoader(data_directory, glob='**/*.pdf')
+
+    # Load all documents
+    try:
+        txt_docs = txt_loader.load()
+        pdf_docs = pdf_loader.load()
+        docs = txt_docs + pdf_docs
+    except FileNotFoundError:
+        st.error("The provided directory path or file pattern is not valid.")
+        return
+
+    # Splitter for splitting text documents into smaller chunks
+    char_text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+
+    # Split all loaded documents
+    doc_texts = char_text_splitter.split_documents(docs)
+
+    # Get embeddings from OpenAI API
+    openAI_embeddings = OpenAIEmbeddings(openai_api_key=os.environ['OPENAI_API_KEY'])
+
+    # Create VectorStore from the documents using the embeddings
+    vStore = Chroma.from_documents(doc_texts, openAI_embeddings)
+
+    # Create a VectorDBQA model
+    model = VectorDBQA.from_chain_type(llm=OpenAI(), chain_type="stuff", vectorstore=vStore)
+
+    # Add a title on the main screen
+    st.title("Welcome to AI training Chatbot")
+
+    # Add a "Clear Cache" button in the sidebar
+    if st.sidebar.button("Clear Cache"):
+        clear_cache()
+
+    # Styling the informational text in the sidebar
+    st.sidebar.markdown('<p style="font-size: 12px; font-weight: bold;">Click on the "Clear Cache" button to get the updated data.</p>', unsafe_allow_html=True)
+
+    # UI to get a question from the user on the main screen
+    question = st.text_input("Please enter your question: ")
+
+    # "Get Answer" button on the main screen
+    if st.button("Get Answer"):
+        question = question.strip()
+        if not question:
+            st.warning("Please enter a question.")
+            return
+        if len(question) < 10:
+            st.warning("Please enter a longer question.")
+            return
+
+        # Check if the question requires a table response
+        if "table" in question.lower():
+            # Generate and display the table response with data from the local directory
+            data = load_data_from_local_directory(data_directory, question)
+            table_response = generate_table_from_data(data)
+            st.text(table_response)  # Use st.text to display the table response
+        else:
+            # Run the model and get the answer for non-table questions
+            try:
+                answer = model.run(question)
+                st.write(question)
+                st.write(answer)
+                cache_response(question, answer)
+            except Exception as e:
+                st.error(f"An error occurred while running the model: {e}")
+                return
+
+if __name__ == "__main__":
+    main()
