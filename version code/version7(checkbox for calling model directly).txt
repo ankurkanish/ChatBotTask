@@ -1,0 +1,170 @@
+import os
+import streamlit as st
+import pdfplumber
+import json
+import pandas as pd
+import openai  # Import the OpenAI library
+
+from langchain import OpenAI, VectorDBQA
+from langchain.document_loaders import DirectoryLoader
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import Chroma
+
+def cache_response(question, response):
+    with open("cache.json", "r") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            data = {}
+    
+    data[question] = response
+    
+    with open("cache.json", "w") as f:
+        json.dump(data, f)
+
+def get_cached_response(question):
+    with open("cache.json", "r") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            data = {}
+        
+        if question in data:
+            return data[question]
+    return None
+
+def clear_cache():
+    with open("cache.json", "w") as f:
+        data = {}
+        json.dump(data, f)
+
+def load_data_from_local_directory(directory_path, user_query):
+    data = []
+    for filename in os.listdir(directory_path):
+        if filename.lower().endswith(".pdf"):
+            first_word = filename.lower().split()[0]
+            if first_word in user_query.lower():
+                with pdfplumber.open(os.path.join(directory_path, filename)) as pdf:
+                    for page in pdf.pages:
+                        table = page.extract_table()
+                        if table:
+                            header = table[0]
+                            for row in table[1:]:
+                                data.append({header[i]: row[i] for i in range(len(header))})
+    return data
+
+def generate_table_from_data(data):
+    if not data:
+        return None
+
+    # Manually construct the table HTML
+    table_html = "<table class='no-index'><thead><tr>"
+    header = list(data[0].keys())
+    for col in header:
+        table_html += f"<th>{col}</th>"
+    table_html += "</tr></thead><tbody>"
+
+    for row in data:
+        table_html += "<tr>"
+        for col in header:
+            table_html += f"<td>{row[col]}</td>"
+        table_html += "</tr>"
+    
+    table_html += "</tbody></table>"
+
+    return table_html
+
+# Function to get the response directly from GPT-3.5 (the advanced AI model)
+def get_advanced_ai_response(question):
+    # Set up your OpenAI API key
+    openai.api_key = "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"
+
+    # Call the OpenAI API to get the response from GPT-3.5
+    response = openai.Completion.create(
+        engine="text-davinci-002",  # GPT-3.5 engine
+        prompt=question,
+        max_tokens=100  # Adjust the number of tokens as needed
+    )
+
+    return response.choices[0].text.strip()
+
+def main():
+    os.environ["OPENAI_API_KEY"] = "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"  # Set the OpenAI API key here
+
+    data_directory = "C:/Users/Ankur Sharma/Desktop/datachatbot"
+
+    txt_loader = DirectoryLoader(data_directory, glob='**/*.txt')
+    pdf_loader = DirectoryLoader(data_directory, glob='**/*.pdf')
+
+    try:
+        txt_docs = txt_loader.load()
+        pdf_docs = pdf_loader.load()
+        docs = txt_docs + pdf_docs
+    except FileNotFoundError:
+        st.error("The provided directory path or file pattern is not valid.")
+        return
+
+    char_text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    doc_texts = char_text_splitter.split_documents(docs)
+
+    openAI_embeddings = OpenAIEmbeddings(openai_api_key=os.environ['OPENAI_API_KEY'])
+    vStore = Chroma.from_documents(doc_texts, openAI_embeddings)
+    model = VectorDBQA.from_chain_type(llm=OpenAI(), chain_type="stuff", vectorstore=vStore)
+
+    st.title("Welcome to AI Training Chatbot")
+
+    if st.sidebar.button("Clear Cache"):
+        clear_cache()
+
+    st.sidebar.markdown('<p style="font-size: 12px; font-weight: bold;">Click on the "Clear Cache" button to get the updated data.</p>', unsafe_allow_html=True)
+
+    question = st.text_input("Please enter your question: ")
+
+    refer_advanced_ai = st.checkbox("Refer our advanced AI")
+
+    if st.button("Get Answer"):
+        question = question.strip()
+        if not question:
+            st.warning("Please enter a question.")
+            return
+        if len(question) < 10:
+            st.warning("Please enter a longer question.")
+            return
+
+        if refer_advanced_ai:
+            response = get_advanced_ai_response(question)
+            st.markdown("## Advanced AI Response")
+            st.write(response)
+        elif "table" in question.lower():
+            cached_table_response = get_cached_response(question)
+            if cached_table_response is not None:
+                st.markdown("## Cached Response (Table)")
+                st.markdown(generate_table_from_data(cached_table_response), unsafe_allow_html=True)
+            else:
+                data = load_data_from_local_directory(data_directory, question)
+                table_response = generate_table_from_data(data)
+                if table_response is not None:
+                    st.markdown(table_response, unsafe_allow_html=True)
+
+                    # Cache the table response for future use
+                    cache_response(question, data)
+                else:
+                    st.warning("No data available.")
+        else:
+            try:
+                cached_response = get_cached_response(question)
+                if cached_response is not None:
+                    st.markdown("## Cached Response")
+                    st.write(cached_response)
+                else:
+                    answer = model.run(question)
+                    st.write(question)
+                    st.write(answer)
+                    cache_response(question, answer)
+            except Exception as e:
+                st.error(f"An error occurred while running the model: {e}")
+                return
+
+if __name__ == "__main__":
+    main()
