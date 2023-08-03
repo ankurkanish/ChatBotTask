@@ -1,0 +1,1 @@
+Number of test cases in smoke suite are 26
