@@ -1,0 +1,2 @@
+My dog's name is Sunny.
+there are 24 smoke test cases
